@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 2,
+  "id": "daily-growth-redeem",
+  "name": "连登奖励自动领取",
+  "description": "逐个账号读取「活跃地图」连登状态，对已达档且本月未兑换的档位调用官方兑换接口领取（7/14/28 天三档可累计，每档每月限 1 次）。不切号、不碰界面；未达标或已兑换的档位自动跳过，奖励实时到账该账号。",
+  "enabled": false,
+  "concurrency": {
+    "policy": "skip"
+  },
+  "trigger": {
+    "type": "manual",
+    "types": [],
+    "oncePerNavigation": true
+  },
+  "schedule": {
+    "type": "interval",
+    "minutes": 720
+  },
+  "variables": {},
+  "steps": [
+    {
+      "op": "vars.set",
+      "key": "gsRedeemed",
+      "value": 0
+    },
+    {
+      "op": "account.forEach",
+      "accounts": "all",
+      "switch": false,
+      "concurrency": 1,
+      "steps": [
+        {
+          "op": "logic.catch",
+          "steps": [
+            {
+              "op": "http.requestAsAccount",
+              "method": "GET",
+              "url": "https://www.workbuddy.cn/activity/growth/streak",
+              "timeoutMs": 15000,
+              "saveAs": "gsStreak"
+            },
+            {
+              "op": "logic.if",
+              "condition": {
+                "left": "{{vars.gsStreak.json.code}}",
+                "operator": "equals",
+                "right": 0
+              },
+              "then": [
+                {
+                  "op": "logic.if",
+                  "condition": {
+                    "left": "{{vars.gsStreak.json.data.redemption_status.tier_7d_status}}",
+                    "operator": "equals",
+                    "right": "available"
+                  },
+                  "then": [
+                    {
+                      "op": "value.uuid",
+                      "saveAs": "gsTok7"
+                    },
+                    {
+                      "op": "http.requestAsAccount",
+                      "method": "POST",
+                      "url": "https://www.workbuddy.cn/activity/growth/redeem",
+                      "body": {
+                        "tier": "7d",
+                        "client_token": "u-{{vars.gsTok7}}"
+                      },
+                      "timeoutMs": 15000,
+                      "saveAs": "gsRedeem7"
+                    },
+                    {
+                      "op": "logic.if",
+                      "condition": {
+                        "left": "{{vars.gsRedeem7.json.code}}",
+                        "operator": "equals",
+                        "right": 0
+                      },
+                      "then": [
+                        {
+                          "op": "log.write",
+                          "message": "「{account}」连登 7 天档兑换成功：积分 +{credit} / 能量 +{energy} / 补登卡 +{cards} / 抽奖 +{chances}",
+                          "params": {
+                            "account": "{{account.nickname}}",
+                            "credit": "{{vars.gsStreak.json.data.redemption_status.tiers.0.credit}}",
+                            "energy": "{{vars.gsStreak.json.data.redemption_status.tiers.0.energy}}",
+                            "cards": "{{vars.gsStreak.json.data.redemption_status.tiers.0.cards}}",
+                            "chances": "{{vars.gsStreak.json.data.redemption_status.tiers.0.chances}}"
+                          }
+                        },
+                        {
+                          "op": "value.number",
+                          "operator": "add",
+                          "values": [
+                            "{{vars.gsRedeemed}}",
+                            1
+                          ],
+                          "saveAs": "gsRedeemed"
+                        }
+                      ],
+                      "else": [
+                        {
+                          "op": "log.write",
+                          "message": "「{account}」连登 7 天档兑换失败：{msg}",
+                          "params": {
+                            "account": "{{account.nickname}}",
+                            "msg": "{{vars.gsRedeem7.json.msg}}"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "op": "logic.if",
+                  "condition": {
+                    "left": "{{vars.gsStreak.json.data.redemption_status.tier_14d_status}}",
+                    "operator": "equals",
+                    "right": "available"
+                  },
+                  "then": [
+                    {
+                      "op": "value.uuid",
+                      "saveAs": "gsTok14"
+                    },
+                    {
+                      "op": "http.requestAsAccount",
+                      "method": "POST",
+                      "url": "https://www.workbuddy.cn/activity/growth/redeem",
+                      "body": {
+                        "tier": "14d",
+                        "client_token": "u-{{vars.gsTok14}}"
+                      },
+                      "timeoutMs": 15000,
+                      "saveAs": "gsRedeem14"
+                    },
+                    {
+                      "op": "logic.if",
+                      "condition": {
+                        "left": "{{vars.gsRedeem14.json.code}}",
+                        "operator": "equals",
+                        "right": 0
+                      },
+                      "then": [
+                        {
+                          "op": "log.write",
+                          "message": "「{account}」连登 14 天档兑换成功：积分 +{credit} / 能量 +{energy} / 补登卡 +{cards} / 抽奖 +{chances}",
+                          "params": {
+                            "account": "{{account.nickname}}",
+                            "credit": "{{vars.gsStreak.json.data.redemption_status.tiers.1.credit}}",
+                            "energy": "{{vars.gsStreak.json.data.redemption_status.tiers.1.energy}}",
+                            "cards": "{{vars.gsStreak.json.data.redemption_status.tiers.1.cards}}",
+                            "chances": "{{vars.gsStreak.json.data.redemption_status.tiers.1.chances}}"
+                          }
+                        },
+                        {
+                          "op": "value.number",
+                          "operator": "add",
+                          "values": [
+                            "{{vars.gsRedeemed}}",
+                            1
+                          ],
+                          "saveAs": "gsRedeemed"
+                        }
+                      ],
+                      "else": [
+                        {
+                          "op": "log.write",
+                          "message": "「{account}」连登 14 天档兑换失败：{msg}",
+                          "params": {
+                            "account": "{{account.nickname}}",
+                            "msg": "{{vars.gsRedeem14.json.msg}}"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "op": "logic.if",
+                  "condition": {
+                    "left": "{{vars.gsStreak.json.data.redemption_status.tier_28d_status}}",
+                    "operator": "equals",
+                    "right": "available"
+                  },
+                  "then": [
+                    {
+                      "op": "value.uuid",
+                      "saveAs": "gsTok28"
+                    },
+                    {
+                      "op": "http.requestAsAccount",
+                      "method": "POST",
+                      "url": "https://www.workbuddy.cn/activity/growth/redeem",
+                      "body": {
+                        "tier": "28d",
+                        "client_token": "u-{{vars.gsTok28}}"
+                      },
+                      "timeoutMs": 15000,
+                      "saveAs": "gsRedeem28"
+                    },
+                    {
+                      "op": "logic.if",
+                      "condition": {
+                        "left": "{{vars.gsRedeem28.json.code}}",
+                        "operator": "equals",
+                        "right": 0
+                      },
+                      "then": [
+                        {
+                          "op": "log.write",
+                          "message": "「{account}」连登 28 天档兑换成功：积分 +{credit} / 能量 +{energy} / 补登卡 +{cards} / 抽奖 +{chances}",
+                          "params": {
+                            "account": "{{account.nickname}}",
+                            "credit": "{{vars.gsStreak.json.data.redemption_status.tiers.2.credit}}",
+                            "energy": "{{vars.gsStreak.json.data.redemption_status.tiers.2.energy}}",
+                            "cards": "{{vars.gsStreak.json.data.redemption_status.tiers.2.cards}}",
+                            "chances": "{{vars.gsStreak.json.data.redemption_status.tiers.2.chances}}"
+                          }
+                        },
+                        {
+                          "op": "value.number",
+                          "operator": "add",
+                          "values": [
+                            "{{vars.gsRedeemed}}",
+                            1
+                          ],
+                          "saveAs": "gsRedeemed"
+                        }
+                      ],
+                      "else": [
+                        {
+                          "op": "log.write",
+                          "message": "「{account}」连登 28 天档兑换失败：{msg}",
+                          "params": {
+                            "account": "{{account.nickname}}",
+                            "msg": "{{vars.gsRedeem28.json.msg}}"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "op": "log.write",
+      "message": "连登奖励巡检完成：本轮共兑换 {count} 个档位",
+      "params": {
+        "count": "{{vars.gsRedeemed}}"
+      }
+    }
+  ],
+  "updatedAt": 1791366684970
+}
